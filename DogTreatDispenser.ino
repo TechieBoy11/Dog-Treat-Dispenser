@@ -9,9 +9,14 @@
 #define BUTTON_PIN 2
 #define SERVO_PIN 9
 
-// Adjustable servo positions
+/////////// ADJUSTABLE VARIABLES///////////////////////////////////////////////////////
+// servo positions 
 const int drop = 0;                  // Position of the servo for drop command (low)
 const int hold = 65;                 // Position of the servo for drop command (high)
+
+const unsigned long waitTime = 0    // time before drop is activated (ms)
+
+///////////////////////////////////////////////////////////////////////////////////////
 
 // loop variables
 Servo myservo;                      // create servo object to control a servo
