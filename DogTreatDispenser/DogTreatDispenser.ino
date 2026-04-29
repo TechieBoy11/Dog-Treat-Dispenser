@@ -8,6 +8,7 @@
 #define BUZZER_PIN D0 
 #define BUTTON_PIN 2
 #define SERVO_PIN 9
+#define LED TODO
 
 /////////// ADJUSTABLE VARIABLES///////////////////////////////////////////////////////
 // servo positions 
