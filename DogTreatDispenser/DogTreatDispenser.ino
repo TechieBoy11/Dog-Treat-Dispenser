@@ -20,12 +20,37 @@
 #define LED_PIN_F 7
 #define LED_PIN_G 8 
 
+const int digits[10][7] = {
+  {1,1,1,1,1,1,0}, // 0
+  {0,1,1,0,0,0,0}, // 1
+  {1,1,0,1,1,0,1}, // 2
+  {1,1,1,1,0,0,1}, // 3
+  {0,1,1,0,0,1,1}, // 4
+  {1,0,1,1,0,1,1}, // 5
+  {1,0,1,1,1,1,1}, // 6
+  {1,1,1,0,0,0,0}, // 7
+  {1,1,1,1,1,1,1}, // 8
+  {1,1,1,1,0,1,1}  // 9
+};
+
+const int segmentPins[7] = {
+  LED_PIN_A,
+  LED_PIN_B,
+  LED_PIN_C,
+  LED_PIN_D,
+  LED_PIN_E,
+  LED_PIN_F,
+  LED_PIN_G
+};
+
 /////////// ADJUSTABLE VARIABLES///////////////////////////////////////////////////////
 // servo positions 
 const int drop = 0;                  // Position of the servo for drop command (low)
 const int hold = 65;                 // Position of the servo for drop command (high)
 
-const unsigned long waitTime = 0;    // time before drop is activated (ms)
+const int defaultTime = 4;                   // time before drop is activated (seconds)
+int waitTime = 4;
+int warningNum = 2;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -33,7 +58,11 @@ const unsigned long waitTime = 0;    // time before drop is activated (ms)
 Servo myservo;                      // create servo object to control a servo
 bool state = true;                  
 bool changed = false;
-int buttonState = 0;
+
+int start = 1;
+int up = 1;
+int down = 1;
+
 
 
 void setup() {
@@ -45,13 +74,9 @@ void setup() {
   pinMode(MODE_BUTTON_PIN, INPUT_PULLUP);
 
   //LED display
-  pinMode(LED_PIN_A, OUTPUT);
-  pinMode(LED_PIN_B, OUTPUT);
-  pinMode(LED_PIN_C, OUTPUT);
-  pinMode(LED_PIN_D, OUTPUT);
-  pinMode(LED_PIN_E, OUTPUT);
-  pinMode(LED_PIN_F, OUTPUT);
-  pinMode(LED_PIN_G, OUTPUT);
+  for (int i = 0; i < 7; i++) {
+    pinMode(segmentPins[i], OUTPUT);
+  }
   pinMode(LED_PIN_DP, OUTPUT);
 
   // Others
@@ -63,13 +88,30 @@ void setup() {
 // main control loop
 void loop() {
   // button controls
-  buttonState = digitalRead(MODE_BUTTON_PIN);
-  if (buttonState == LOW){
-    state = !state;
-    changed = true;
+  holdTreat();
+  start = digitalRead(MODE_BUTTON_PIN);
+  up = digitalRead(UP_BUTTON_PIN);
+  down = digitalRead(DOWN_BUTTON_PIN);
+
+  if (start == LOW){
+    setNoise();
+    delay(waitTime*10000);
+    dropTrigered();
+    waitTime = defaultTime;
+    delay(6000);
+  } else if (up == LOW && waitTime <9 ) {
+    waitTime++;
+    delay(250);
+  } else if (down == LOW && waitTime > 1 ){
+    waitTime--;
+    delay(250);
   }
+
+  displayDigit(waitTime);
   
 
+
+/*
   // runs on state change
   if (changed) {
     dropTrigered();
@@ -81,14 +123,21 @@ void loop() {
     holdTreat();
   else 
     dropTreat();
+*/
+}
+
+void setTime() {
 
 }
 
+
+
+/////helper functions///////////////////////
 // drop sequence
 void dropTrigered() {
   aleart();
 
-  for (int i=0; i < 3; i++){
+  for (int i=0; i < warningNum; i++){
     dropTreat();
     delay(1000);
     holdTreat();
@@ -111,16 +160,43 @@ void holdTreat() {
 
 // plays noise through buzzer
 void aleart() {
-  for (int i=0; i<3; i++) {
-    tone(BUZZER_PIN, 1000, 750); // 1 kHz tone
+  for (int i=0; i<warningNum; i++) {
+    tone(BUZZER_PIN, 1500, 1000); // 1 kHz tone
+    delay(250);
+    displayDigit(waitTime);
+    delay(250);
+    clearDisplay();
+    tone(BUZZER_PIN, 1000, 1000); // 1 kHz tone
+    delay(250);
+    displayDigit(waitTime);
+    delay(250);
+    clearDisplay();
+    tone(BUZZER_PIN, 2000, 1000); // 1 kHz tone
     delay(500);
-    tone(BUZZER_PIN, 750, 500); // 1 kHz tone
+    displayDigit(waitTime);
     delay(500);
-    tone(BUZZER_PIN, 1250, 1000); // 1 kHz tone
-    delay(2000);
+    clearDisplay();
 
   }
-  
+}
+
+void setNoise () {
+  tone(BUZZER_PIN, 500, 1000); // 1 kHz tone
+  delay(500);
+  tone(BUZZER_PIN, 750, 1000); // 1 kHz tone
+  delay(500);
+}
+
+void displayDigit(int num) {
+  for (int i = 0; i < 7; i++) {
+    digitalWrite(segmentPins[i], digits[num][i]);
+  }
+}
+
+void clearDisplay() {
+  for (int i = 0; i < 7; i++) {
+    digitalWrite(segmentPins[i], LOW);
+  }
 }
 
 

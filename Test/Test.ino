@@ -59,9 +59,9 @@ void setup() {
 void loop() {
   // Buttons test
   //Serial.println("Starting button tests");
-  //buttonTest(MODE_BUTTON_PIN);
-  //buttonTest(UP_BUTTON_PIN);
-  //buttonTest(DOWN_BUTTON_PIN);
+  buttonTest(MODE_BUTTON_PIN);
+  buttonTest(UP_BUTTON_PIN);
+  buttonTest(DOWN_BUTTON_PIN);
 
   // Buzzer test
   Serial.println("Starting buzzer tests");
