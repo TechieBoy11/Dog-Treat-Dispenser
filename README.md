@@ -5,13 +5,13 @@ A device designed to dispense a dog treat and alert at a scheduled time for away
 * Arduino kit
   * Arduino board
   * breadboard
-  *connection wires
-  *servo
-  *servo blade
-  *buzzer
-  *LED
-  *button
-*Arduino software
+  * connection wires
+  * servo
+  * servo blade
+  * buzzer
+  * LED
+  * button
+* Arduino software
 * cardboard or other construction material
 * Hot glue
 * box cutter or scissors 
