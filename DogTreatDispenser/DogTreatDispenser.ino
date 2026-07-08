@@ -1,6 +1,6 @@
 // Author: Logan Johnson
 // Date: 04/27/2026
-// Version 1.0
+// Version 3.2
 #include <Servo.h>
 
 // pin definition
@@ -19,6 +19,24 @@
 #define LED_PIN_E 6
 #define LED_PIN_F 7
 #define LED_PIN_G 8 
+
+/////////// //////////////////ADJUSTABLE VARIABLES////////////////////////////////////
+// servo positions 
+const int drop = 0;                  // Position of the servo for drop command (low)
+const int hold = 65;                 // Position of the servo for drop command (high)
+
+// Time
+const bool isHours = true;           // true for hour mode false for minuts
+const int defaultTime = 8;           // default starting time
+int waitTime = defaultTime;
+const int warningNum = 4;            // Number of warnings before drop        
+const int buttonDelay = 500;         // Input lag for buttons
+
+// Tones marking time passed
+const bool hourlyTone = true;        // beep every hour
+const bool quarterlyTone = false;    // beep every 15 min
+
+///////////////////////////////////////////////////////////////////////////////////////
 
 const int digits[10][7] = {
   {1,1,1,1,1,1,0}, // 0
@@ -43,25 +61,16 @@ const int segmentPins[7] = {
   LED_PIN_G
 };
 
-/////////// ADJUSTABLE VARIABLES///////////////////////////////////////////////////////
-// servo positions 
-const int drop = 0;                  // Position of the servo for drop command (low)
-const int hold = 65;                 // Position of the servo for drop command (high)
-
-const int defaultTime = 4;                   // time before drop is activated (seconds)
-int waitTime = 4;
-int warningNum = 2;
-
-///////////////////////////////////////////////////////////////////////////////////////
-
 // loop variables
 Servo myservo;                      // create servo object to control a servo
-bool state = true;                  
-bool changed = false;
 
 int start = 1;
 int up = 1;
 int down = 1;
+
+int quarter = 0;
+bool flash = false;
+bool holding = false;
 
 
 
@@ -81,60 +90,88 @@ void setup() {
 
   // Others
   pinMode(BUZZER_PIN, OUTPUT);
-  myservo.attach(SERVO_PIN);   
-
+  myservo.attach(SERVO_PIN);
+  startNoise(); 
 }
 
 // main control loop
 void loop() {
+  
+  if (!holding){
+    holdTreat();
+    holding = true;
+  }
+
   // button controls
-  holdTreat();
   start = digitalRead(MODE_BUTTON_PIN);
   up = digitalRead(UP_BUTTON_PIN);
   down = digitalRead(DOWN_BUTTON_PIN);
 
+  // Start timer and drop sequence
   if (start == LOW){
     setNoise();
-    delay(waitTime*10000);
-    dropTrigered();
+    if (isHours)
+      delayHandleHour(waitTime);
+    else
+      delayHandleMin(waitTime);
+    dropTriggered();
     waitTime = defaultTime;
-    delay(6000);
-  } else if (up == LOW && waitTime <9 ) {
-    waitTime++;
-    delay(250);
-  } else if (down == LOW && waitTime > 1 ){
-    waitTime--;
-    delay(250);
+    quarter = 0;
+    holding = false;
+    delay(3000);
+
+  // increase time
+  } else if (up == LOW) {
+    delay(50);
+    down = digitalRead(DOWN_BUTTON_PIN);
+
+    if (down == LOW){
+      if (quarter >= 3)
+        quarter = 0;
+      else
+        quarter++;
+    } else if (waitTime < 9)
+      waitTime++;
+    delay(buttonDelay);
+
+  // decrease time
+  } else if (down == LOW){
+    delay(50);
+    up = digitalRead(UP_BUTTON_PIN);
+
+    if (up == LOW){
+      if (quarter >= 3)
+        quarter = 0;
+      else
+        quarter++;
+    } else if (waitTime > 1)
+      waitTime--;
+    delay(buttonDelay);
+
+  } else{
+    delay(buttonDelay);
   }
 
-  displayDigit(waitTime);
-  
-
-
-/*
-  // runs on state change
-  if (changed) {
-    dropTrigered();
-    changed = false;
-  }  
-
-  // postion selection
-  if (state)
-    holdTreat();
-  else 
-    dropTreat();
-*/
+  displayControl(waitTime, flash);
+  flash = !flash;
 }
-
-void setTime() {
-
-}
-
-
 
 /////helper functions///////////////////////
+void test() {
+  holdTreat();
+  start = digitalRead(MODE_BUTTON_PIN);
+
+  // runs on state change
+  if (start) {
+    delay(3000);
+    dropTriggered();
+    delay(3000);
+  }  
+
+}
+
 // drop sequence
-void dropTrigered() {
+void dropTriggered() {
   aleart();
 
   for (int i=0; i < warningNum; i++){
@@ -178,6 +215,10 @@ void aleart() {
     clearDisplay();
 
   }
+  tone(BUZZER_PIN, 3000, 500); // 1 kHz tone
+  delay(500);
+  tone(BUZZER_PIN, 3000, 500); // 1 kHz tone
+  delay(500);
 }
 
 void setNoise () {
@@ -187,16 +228,91 @@ void setNoise () {
   delay(500);
 }
 
+void startNoise() {
+  tone(BUZZER_PIN, 250, 500); // 1 kHz tone
+  delay(500);
+  tone(BUZZER_PIN, 500, 500); // 1 kHz tone
+  delay(500);
+}
+
+// Display functions
+void displayDelay(unsigned long waitTime, int displayTime) {
+  unsigned long startTime = millis();
+  unsigned long lastFlash = millis();
+  bool dFlash = false; 
+  while (millis() - startTime < waitTime) {
+      // Toggle flash every 500 ms
+      if (millis() - lastFlash >= 500) {
+          dFlash = !dFlash;
+          lastFlash += 500;
+      }
+      displayControl(displayTime, dFlash);
+      delay(1);
+  }
+}
+
+void displayControl(int time, bool blink){
+  // display
+  if (quarter == 1 || quarter == 3) {
+    if (blink) 
+      displayDigit(time);
+    else
+      clearDisplay();
+  } else {
+    displayDigit(time);
+  }
+
+  if (quarter == 3)
+    digitalWrite(LED_PIN_DP, 1);
+  else 
+    digitalWrite(LED_PIN_DP, 0);
+}
+
 void displayDigit(int num) {
   for (int i = 0; i < 7; i++) {
     digitalWrite(segmentPins[i], digits[num][i]);
   }
+
+  if (quarter == 2 || quarter == 3)
+    digitalWrite(LED_PIN_DP, 1);
+  else
+    digitalWrite(LED_PIN_DP, 0);
 }
 
 void clearDisplay() {
   for (int i = 0; i < 7; i++) {
     digitalWrite(segmentPins[i], LOW);
   }
+  digitalWrite(LED_PIN_DP, LOW);
 }
 
+// delay functions
+void delayHandleMin(int time) {
+  int totalQuarters = time * 4 + quarter;
+  while (totalQuarters > 0) {
+      int displayTime = totalQuarters / 4;
+      displayDelay(60000UL, displayTime);
+      totalQuarters--;
+      quarter = totalQuarters % 4;
+      
+      if (hourlyTone && quarter == 0)
+        tone(BUZZER_PIN, 250, 500);
+      else if (quarterlyTone)
+        tone(BUZZER_PIN, 250, 500);
+  }
+}
 
+void delayHandleHour(int time) {
+    int totalQuarters = time * 4 + quarter;
+    while (totalQuarters > 0) {
+        int displayTime = totalQuarters / 4;
+        displayDelay(900000UL, displayTime);
+        totalQuarters--;
+        quarter = totalQuarters % 4;
+
+        if (hourlyTone && quarter == 0)
+          tone(BUZZER_PIN, 250, 500);
+        else if (quarterlyTone)
+          tone(BUZZER_PIN, 250, 500);
+    }
+}
